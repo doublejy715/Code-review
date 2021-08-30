@@ -1,8 +1,6 @@
 Code Review
 ============
 
----
-
 Image Generator
 ---------------
 

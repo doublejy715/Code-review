@@ -1,6 +1,18 @@
 Code Review & Modify
 ===================
 
+General step
+-------------
+1. Train-setting
+  - GPU setting
+  - parser
+  - parameter setting
+  - make model
+  - transfer learning
+  - load data
+  - train code
+  
+
 Original Code
 ---------------
 

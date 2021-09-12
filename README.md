@@ -20,7 +20,7 @@ Original Code
 No | Title | Conference | Year | Link | Code | Summary |  
 ------------ | ------------- |----------|----------|----------|----------|----------|  
 1 | Training Generative Adversarial Networks with Limited Data(StyleGAN2-ada) | CVPR | 2020 | [arXiv](https://arxiv.org/abs/2006.06676v1)|[Code](https://github.com/NVlabs/stylegan2-ada-pytorch)|[Review](https://github.com/doublejy715/Code-review/tree/main/stylegan2-ada-pytorch-main) |  
-2 | Fine-Tuning StyleGAN2 For Cartoon Face Generation | CVPR | 2021 | [arXiv](https://arxiv.org/abs/2106.12445) | [Code](https://github.com/happy-jihye/Cartoon-StyleGan2) | [Review](https://github.com/doublejy715/Paper_review/issues/8) |
+2 | Fine-Tuning StyleGAN2 For Cartoon Face Generation | CVPR | 2021 | [arXiv](https://arxiv.org/abs/2106.12445) | [Code](https://github.com/happy-jihye/Cartoon-StyleGan2) | [Review](https://github.com/doublejy715/Code-review/tree/main/Cartoon-StyleGAN) |
 
 Editted Code
 ---------------

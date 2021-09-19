@@ -14,12 +14,18 @@ from utils import load_generator
 from utils import factorize_weight
 from utils import HtmlPageVisualizer
 
+# add
+from PIL import Image
+import torchvision
+from torchvision import transforms
+import imageio
+
 
 def parse_args():
     """Parses arguments."""
     parser = argparse.ArgumentParser(
         description='Discover semantics from the pre-trained weight.')
-    parser.add_argument('--model_name', type=str, default='stylegan2_ffhq1024',
+    parser.add_argument('--model_name', type=str, default='stylegan_animeface512',
                         help='Name to the pre-trained model.')
     parser.add_argument('--save_dir', type=str, default='results',
                         help='Directory to save the visualization pages. '
@@ -55,7 +61,7 @@ def parse_args():
                              '(default: %(default)s)')
     parser.add_argument('--seed', type=int, default=69,
                         help='Seed for sampling. (default: %(default)s)')
-    parser.add_argument('--gpu_id', type=str, default='1',
+    parser.add_argument('--gpu_id', type=str, default='0',
                         help='GPU(s) to use. (default: %(default)s)')
     return parser.parse_args()
 
@@ -68,7 +74,8 @@ def main():
 
     # Factorize weights.
     generator = load_generator(args.model_name)
-    gan_type = parse_gan_type(generator)
+    
+    #gan_type = parse_gan_type(generator)
     layers, boundaries, values = factorize_weight(generator, args.layer_idx)
 
     # Set random seed.
@@ -76,69 +83,30 @@ def main():
     torch.manual_seed(args.seed)
 
     # Prepare codes.
-    codes = torch.randn(args.num_samples, generator.z_space_dim).cuda()
-    if gan_type == 'pggan':
-        codes = generator.layer0.pixel_norm(codes)
-    elif gan_type in ['stylegan', 'stylegan2']:
-        codes = generator.mapping(codes)['w']
-        codes = generator.truncation(codes,
-                                     trunc_psi=args.trunc_psi,
-                                     trunc_layers=args.trunc_layers)
-    codes = codes.detach().cpu().numpy()
+    code = torch.randn(1, 512).cuda() # 샘플 개수 x z dim 크기의 matrix를 만듦
+    code = generator.mapping(code,None)
+    code = code.detach().cpu().numpy()
 
     # Generate visualization pages.
-    distances = np.linspace(args.start_distance,args.end_distance, args.step)
-    num_sam = args.num_samples
+    distances = np.linspace(args.start_distance,args.end_distance, args.step) # -3 ~ +3 까지 step 개수만큼 숫자 저장
+    # 몇개의 semantic을 조절할지 생각
     num_sem = args.num_semantics
-    vizer_1 = HtmlPageVisualizer(num_rows=num_sem * (num_sam + 1),
-                                 num_cols=args.step + 1,
-                                 viz_size=args.viz_size)
-    vizer_2 = HtmlPageVisualizer(num_rows=num_sam * (num_sem + 1),
-                                 num_cols=args.step + 1,
-                                 viz_size=args.viz_size)
 
-    headers = [''] + [f'Distance {d:.2f}' for d in distances]
-    vizer_1.set_headers(headers)
-    vizer_2.set_headers(headers)
-    for sem_id in range(num_sem):
-        value = values[sem_id]
-        vizer_1.set_cell(sem_id * (num_sam + 1), 0,
-                         text=f'Semantic {sem_id:03d}<br>({value:.3f})',
-                         highlight=True)
-        for sam_id in range(num_sam):
-            vizer_1.set_cell(sem_id * (num_sam + 1) + sam_id + 1, 0,
-                             text=f'Sample {sam_id:03d}')
-    for sam_id in range(num_sam):
-        vizer_2.set_cell(sam_id * (num_sem + 1), 0,
-                         text=f'Sample {sam_id:03d}',
-                         highlight=True)
-        for sem_id in range(num_sem):
-            value = values[sem_id]
-            vizer_2.set_cell(sam_id * (num_sem + 1) + sem_id + 1, 0,
-                             text=f'Semantic {sem_id:03d}<br>({value:.3f})')
-
-    for sam_id in tqdm(range(num_sam), desc='Sample ', leave=False):
-        code = codes[sam_id:sam_id + 1]
-        for sem_id in tqdm(range(num_sem), desc='Semantic ', leave=False):
-            boundary = boundaries[sem_id:sem_id + 1]
-            for col_id, d in enumerate(distances, start=1):
-                temp_code = code.copy()
-                if gan_type == 'pggan':
-                    temp_code += boundary * d
-                    image = generator(to_tensor(temp_code))['image']
-                elif gan_type in ['stylegan', 'stylegan2']:
-                    temp_code[:, layers, :] += boundary * d
-                    image = generator.synthesis(to_tensor(temp_code))['image']
-                image = postprocess(image)[0]
-                vizer_1.set_cell(sem_id * (num_sam + 1) + sam_id + 1, col_id,
-                                 image=image)
-                vizer_2.set_cell(sam_id * (num_sem + 1) + sem_id + 1, col_id,
-                                 image=image)
-
-    prefix = (f'{args.model_name}_'
-              f'N{num_sam}_K{num_sem}_L{args.layer_idx}_seed{args.seed}')
-    vizer_1.save(os.path.join(args.save_dir, f'{prefix}_sample_first.html'))
-    vizer_2.save(os.path.join(args.save_dir, f'{prefix}_semantic_first.html'))
+    for sem_id in tqdm(range(num_sem), desc='Semantic ', leave=False):
+          boundary = boundaries[sem_id:sem_id + 1]
+          for col_id, d in enumerate(distances, start=1):
+               os.makedirs(f'results/{sem_id}',exist_ok=True)
+               temp_code = code.copy()
+               temp_code[:, layers, :] += boundary * d # temp_code(=code)의 일부 layer에 broundary * step만큼 더한다. w vector 수정
+               image = generator.synthesis(to_tensor(temp_code),noise_mode='const') # 이미지 뽑아냄 synethesis의 input은 
+               
+               if col_id == 1:
+                    image = postprocess(image)[0] # 이미지 전처리
+                    tmp = image
+               else:
+                    images = postprocess(image)[0] # 이미지 전처리
+                    tmp = np.concatenate((tmp,images),axis=1)
+          imageio.imwrite(f'results/{sem_id}.png',tmp)
 
 
 if __name__ == '__main__':

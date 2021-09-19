@@ -1,1 +1,0 @@
-python sefa.py stylegan_animeface512 -L 0-1 -N 5 -K 5

@@ -23,7 +23,7 @@ No | Title | Conference | Year | Link | Code | Summary |
 2 | Fine-Tuning StyleGAN2 For Cartoon Face Generation | CVPR | 2021 | [arXiv](https://arxiv.org/abs/2106.12445) | [Code](https://github.com/happy-jihye/Cartoon-StyleGan2) | [Review](https://github.com/doublejy715/Code-review/tree/main/Cartoon-StyleGAN) |
 3 | Closed-Form Factorization of Latent Semantics in GANs(SeFa) | CVPR | 2019 | [arXiv](https://arxiv.org/abs/2007.06600v1) | [Code](https://paperswithcode.com/paper/closed-form-factorization-of-latent-semantics) | [Review](https://github.com/doublejy715/Code-review/tree/main/SeFa/sefa-original) |
 4 | Tex2Shape: Detailed Full Human Body Geometry From a Single Image | CVPR | 2019 | [arXiv](https://arxiv.org/abs/1904.08645) | [Code](https://github.com/thmoa/tex2shape) | |
-5 | StyleFlow: Attribute-conditioned Exploration of StyleGAN-Generated Images using Conditional Continuous Normalizing Flows | CVPR | 2020 | [arXiv](https://arxiv.org/abs/2008.02401) | [Code](https://github.com/RameenAbdal/StyleFlow) | |
+5 | StyleFlow: Attribute-conditioned Exploration of StyleGAN-Generated Images using Conditional Continuous Normalizing Flows | CVPR | 2020 | [arXiv](https://arxiv.org/abs/2008.02401) | [Code](https://github.com/RameenAbdal/StyleFlow) | [Review](https://github.com/doublejy715/Code-review/tree/main/StyleFlow/StyleFlow-original) |
 
 Editted Code
 ---------------

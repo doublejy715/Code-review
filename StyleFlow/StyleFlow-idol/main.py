@@ -15,9 +15,6 @@ import legacy
 from PIL import Image
 import imageio
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-
 import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -85,7 +82,7 @@ def score(seed, styleGAN):
 
     return  light_score, attri_score, w_vector.detach().cpu().numpy() # w_vector shape : 1 18 512
 # 여기는 random seed를 넣어주면 w latent vector, attr_score, light_score를 가지게 해야함
-def update_GT_scene_image(w,attri_score,light_score,model,CNFs, pre_lighting):
+def prepareing(w,attri_score,light_score,model,CNFs, pre_lighting):
     # start synthesis image 정보 저장
     w_current = w
     attr_current = attri_score
@@ -178,7 +175,7 @@ attri_index = 1
 styleGAN, w_avg, CNFs = init(opt,keep_indexes)
 pre_lighting = init_data_points(keep_indexes)
 light_score, attri_score, w_vector = score(seeds,styleGAN)
-GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = update_GT_scene_image(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
+GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = prepareing(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
 
 tmp = GAN_image
 

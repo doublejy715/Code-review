@@ -164,12 +164,6 @@ zero_padding = torch.zeros(1, 16, 1).cuda()
 
 seeds = None
 
-"""
-# attribute 관련
-attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
-min_dic = {'Gender': 0, 'Glasses': 0, 'Yaw': -20, 'Pitch': -20, 'Baldness': 0, 'Beard': 0.0, 'Age': 0, 'Expression': 0}
-max_dic = {'Gender': 1, 'Glasses': 1, 'Yaw': 20, 'Pitch': 20, 'Baldness': 1, 'Beard': 1, 'Age': 65, 'Expression': 1}
-"""
 
 # 여기서 원하는 attribute index 선택 / semantic value 선택
 want_slide_value = 0
@@ -182,7 +176,7 @@ GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_lis
 
 tmp = GAN_image
 
-# 여기서 수치 범위를 정해주면 됨
+
 for i in [-19,-14,-7,0,7,14,20]:
     edit_image, q_array, fws = real_time_arrti(attri_index,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
     tmp = np.concatenate((tmp,edit_image),axis=1)

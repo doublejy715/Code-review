@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 import torchvision.datasets as dset
 import argparse
 
-
+# 이거 확인해 봐야하나?
 
 def standard_normal_logprob(z):
     dim = z.size(-1)

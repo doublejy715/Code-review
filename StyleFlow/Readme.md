@@ -1,8 +1,17 @@
 # StyleFlow
-## Code review
+## StyleFlow - original
 - Code review는 'StyleFlow-original'에 있습니다.
 - UI관련 코드까지 살펴보진 않았습니다.
 - StyleFLow/main.py에 latent code를 edit하는 방법이 있습니다. 해당 부분을 살펴보았습니다.
+
+## StyleFlow - ffhq
+- UI를 이용하지 않고 코드에서 바로 돌릴 수 있도록 수정한 코드입니다.
+- 이용 가능한지 확인만 한 상태이기 때문에 스파게티 코드 상태입니다.
+- model folder에 'stylegan2-ffhq.pkl' 파일을 넣어줘야 합니다.
+
+## StyleFlow - idol
+- UI를 이용하지 않고 코드에서 바로 돌릴 수 있도록 수정한 코드입니다.
+- 기존 모델과 변경점이 있으며, 정리된 코드를 업데이트 할 것입니다.
 
 ## StyleFlow 순서  
 ### 1. init_deep_model

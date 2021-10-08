@@ -14,7 +14,7 @@ import os
 import face_attri_extracter
 import light_score 
 
-import dnnlib
+import dnnlib # fl
 import legacy
 from PIL import Image
 import imageio

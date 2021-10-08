@@ -9,7 +9,11 @@ import torch
 from module.flow import cnf
 from editing import *
 import os
-import face_attri_extracter 
+
+
+import face_attri_extracter
+import light_score 
+
 import dnnlib
 import legacy
 from PIL import Image
@@ -25,30 +29,14 @@ import numpy as np
 
 device = torch.device("cuda")
 
-class Model(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = nn.Linear(1000, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 256)
-        self.fc4 = nn.Linear(256, 128)
-        self.fc5 = nn.Linear(128, 7)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        x = F.softmax(self.fc5(x),dim=1)
-        return x.view(-1,7)
 
 def ss(image):
     print("start extract attribute score!!!")
     resnet50 = models.resnet50(pretrained=True)
     resnet50.to(device)
     resnet50.eval()
-
-    score_model = Model()
+    
+    score_model = light_score.Model()
     score_model.load_state_dict(torch.load('light_score_2.pt'))
     score_model.to(device)
     score_model.eval()
@@ -151,9 +139,11 @@ def init(opt, keep_indexes):
 opt = TestOptions().parse()
 
 truncation_psi = 0.5
+
 keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 212, 246, 285, 300, 329, 362,
                             369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
                             599]
+
 attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
 lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
 
@@ -161,12 +151,13 @@ zero_padding = torch.zeros(1, 16, 1).cuda()
 
 seeds = None
 
-"""
-# attribute 관련
-attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
-min_dic = {'Gender': 0, 'Glasses': 0, 'Yaw': -20, 'Pitch': -20, 'Baldness': 0, 'Beard': 0.0, 'Age': 0, 'Expression': 0}
-max_dic = {'Gender': 1, 'Glasses': 1, 'Yaw': 20, 'Pitch': 20, 'Baldness': 1, 'Beard': 1, 'Age': 65, 'Expression': 1}
-"""
+# parser
+# input -> seed / image 
+# 원하는 attribuet 지정
+# 얼마나 변화시킬지 지정
+# output -> dir 위치 지정 / gird or single image
+
+
 
 # 여기서 원하는 attribute index 선택 / semantic value 선택
 want_slide_value = 0

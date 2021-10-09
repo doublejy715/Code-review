@@ -13,6 +13,19 @@
 - UI를 이용하지 않고 코드에서 바로 돌릴 수 있도록 수정한 코드입니다.
 - 기존 모델과 변경점이 있으며, 정리된 코드를 업데이트 할 것입니다.
 
+## DPR master
+- 얼굴 사진을 한장 넣으면 7방향에서 빛이 비춰진 얼굴 사진을 만들어 준다.
+- styleflow의 학습을 위한 데이터 중 하나.
+
+## Face attribute
+- 얼굴 사진을 넣어주면 얼굴 특징을 숫자로 표현하여 반환한다.
+- styleflow의 학습을 위한 데이터 중 하나.
+
+## lightsocre model
+- DPR master의 output을 기반으로 학습하였음. 사진에 존재하는 빛의 방향을 score 해주는 모델
+- styleflow의 학습을 위한 데이터 중 하나.
+
+
 ## StyleFlow 순서  
 ### 1. init_deep_model
 #### 요약 : styleGAN, CNF chain model을 만든다.

@@ -1,0 +1,5 @@
+# This key will serve all examples in this document.
+KEY = "d7d568d9a2cb43fc9cd613e1930f6dae"
+
+# This endpoint will be used in all examples in this quickstart.
+ENDPOINT = "https://jjy2.cognitiveservices.azure.com/"

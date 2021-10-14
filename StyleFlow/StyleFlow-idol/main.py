@@ -72,7 +72,7 @@ def Generator_Image(seeds, styleGAN):
 
 
 # 여기서부터
-def prepareing(w,attri_score,light_score,model,CNFs, pre_lighting):
+def CNF_model(w,attri_score,light_score,model,CNFs, pre_lighting):
     # start synthesis image 정보 저장
     
     attr_current_list = [attri_score[0][i][0] for i in range(len(attr_order))] # 
@@ -123,8 +123,8 @@ def init_deep_model(opt):
     w_avg = styleGAN.mapping.w_avg
 
     generator.eval()
-    prior = cnf(512, '512-512-512-512-512', 15, 1)
-    prior.load_state_dict(torch.load('traind_model/modellarge10k_001000_02.pt')) # 
+    prior = cnf(512, '512-512-512-512-512', 8, 1)
+    prior.load_state_dict(torch.load('trained_model/modellarge10k_001000_02.pt')) # 
     prior.eval()
 
     return styleGAN, w_avg, prior
@@ -141,7 +141,8 @@ keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 21
                             369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
                             599]
 
-attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+# attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+attr_order = ['Expression']
 lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
 
 zero_padding = torch.zeros(1, 16, 1).cuda()
@@ -158,7 +159,7 @@ seeds = None
 
 # 여기서 원하는 attribute index 선택 / semantic value 선택
 want_slide_value = 0
-attri_index = 1
+attri_index = 0
 
 
 keep_indexes = np.array(keep_indexes).astype(np.int)
@@ -172,7 +173,7 @@ pre_lighting = store_lighting_value(keep_indexes)
 # CNFs에 넣어줄 데이터 미리 준비하기
 w_vector, light_score, attri_score = Generator_Image(seeds,styleGAN)
 
-GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = prepareing(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
+GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = CNF_model(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
 
 tmp = GAN_image
 

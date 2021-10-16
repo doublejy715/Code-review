@@ -1,3 +1,10 @@
+"""
+# attribute 관련
+attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+min_dic = {'Gender': 0, 'Glasses': 0, 'Yaw': -20, 'Pitch': -20, 'Baldness': 0, 'Beard': 0.0, 'Age': 0, 'Expression': 0}
+max_dic = {'Gender': 1, 'Glasses': 1, 'Yaw': 20, 'Pitch': 20, 'Baldness': 1, 'Beard': 1, 'Age': 65, 'Expression': 1}
+
+"""
 # import
 from options.test_options import TestOptions
 import numpy as np
@@ -9,15 +16,11 @@ import torch
 from module.flow import cnf
 from editing import *
 import os
-import numpy as np
-
-import face_attri_extracter #
-import light_score  #
-
-import dnnlib #
-import legacy #
-from PIL import Image #
-import imageio #
+import face_attri_extracter 
+import dnnlib
+import legacy
+from PIL import Image
+import imageio
 
 import torch
 import torchvision.transforms as transforms
@@ -25,16 +28,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-device = torch.device("cuda")
+import numpy as np
 
 
-def cal_light_score(image):
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(1000, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 256)
+        self.fc4 = nn.Linear(256, 128)
+        self.fc5 = nn.Linear(128, 7)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.softmax(self.fc5(x),dim=1)
+        return x.view(-1,7)
+
+def ss(image):
     print("start extract attribute score!!!")
     resnet50 = models.resnet50(pretrained=True)
     resnet50.to(device)
     resnet50.eval()
-    
-    score_model = light_score.Model()
+
+    score_model = Model()
     score_model.load_state_dict(torch.load('light_score_2.pt'))
     score_model.to(device)
     score_model.eval()
@@ -53,57 +74,78 @@ def cal_light_score(image):
 
     return outputs
 
-def Generator_Image(seeds, styleGAN):
-    # 여기서 seed를 넣을 것인지 projection으로 생성할 것인지 코드 추가
-
-    # seeds -> z vector -> w vector
-    all_z = np.array([np.random.RandomState(seeds).randn(styleGAN.z_dim)])
+# score 구하는 모델 들고와야 함 밑 함수 input으로 넣어줘야 함
+def score(seed, styleGAN):
+    """
+    여기서 시작 벡터 값을 조절하면 됨
+    """
+    all_z = np.array([np.random.RandomState(seed).randn(styleGAN.z_dim)])
     w_vector = styleGAN.mapping(torch.from_numpy(all_z).to(device), None)
+    # w_vector = torch.from_numpy(np.load('projected_w.npz','r')['w']).to(device)
+    # mapping SEEDs -> w latent vector
     start_image = styleGAN.synthesis(w_vector,noise_mode='const')
     start_image = (start_image.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8).squeeze(0).cpu().numpy()
 
     Image.fromarray(start_image).save('images/start.png')
 
-    # cal light_score / attribute_score 
-    light_score = np.array(cal_light_score(start_image))
+    light_score = np.array(ss(start_image))
     attri_score = face_attri_extracter.MS_Face(start_image)
 
-    return  w_vector.detach().cpu().numpy(),light_score, attri_score
-
-
-# 여기서부터
-def CNF_model(w,attri_score,light_score,model,CNFs, pre_lighting):
+    return  light_score, attri_score, w_vector.detach().cpu().numpy() # w_vector shape : 1 18 512
+# 여기는 random seed를 넣어주면 w latent vector, attr_score, light_score를 가지게 해야함
+def update_GT_scene_image(w,attri_score,light_score,model,CNFs, pre_lighting):
     # start synthesis image 정보 저장
-    
-    attr_current_list = [attri_score[0][i][0] for i in range(len(attr_order))] # 
+    w_current = w
+    attr_current = attri_score
+
+    light_current = light_score
+
+    # tmp
+    tmp_light = np.array([[[0.],[0,]]])
+    light_current = np.concatenate([light_current,np.array(tmp_light)],axis=1)
+    #---------------
+    attr_current_list = [attr_current[0][i][0] for i in range(len(attr_order))] # 
     # light_current_list = [0 for i in range(7)]
-    light_current_list = [0 for i in range(7)]
+    light_current_list = [0 for i in range(9)]
 
-    q_array = torch.from_numpy(w).cuda().clone().detach()
-
-
-    array_source = torch.from_numpy(attri_score).type(torch.FloatTensor).cuda()
-    array_light = torch.from_numpy(light_score).type(torch.FloatTensor).cuda()
-
-
+    # 이거 ffhq는 16레이어, idol은 18레이어 필요하다는데...
+    #w_current = np.concatenate([w_current,w_current[:,2:4,:]],axis=1) # 추가ㅣ
+    q_array = torch.from_numpy(w_current).cuda().clone().detach()
+    print('###########################')
+    print(w_current.shape)
+    array_source = torch.from_numpy(attr_current).type(torch.FloatTensor).cuda()
+    array_light = torch.from_numpy(light_current).type(torch.FloatTensor).cuda()
     pre_lighting_distance = [pre_lighting[i] - array_light for i in range(len(lighting_order))]
 
-    final_array_source = torch.cat([array_light, array_source], dim=1)
+    final_array_source = torch.cat([array_light, array_source], dim=1) # 1 7 1  / 1 8 1
     final_array_target = torch.cat([array_light, array_source], dim=1)
 
     fws = CNFs(q_array, final_array_source, zero_padding)
-
-    GAN_image = styleGAN.synthesis(torch.tensor(w_vector).to(device),noise_mode='const')
+    # 이거 왜 있누?
+    
+    GAN_image = styleGAN.synthesis(torch.tensor(w_current).to(device),noise_mode='const')
     GAN_image = (GAN_image.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8).squeeze(0).cpu().numpy()
 
     return GAN_image, fws, final_array_target, attr_current_list, q_array, light_current_list, array_light, pre_lighting_distance
 
-def store_lighting_value(keep_indexes):
+def init_data_points(keep_indexes):
+    
+    # raw_w = pickle.load(open("data/sg2latents.pickle", "rb"))
+    # raw_attr = np.load('data/attributes.npy')
     raw_lights2 = np.load('data/light.npy')
     raw_lights = raw_lights2
 
+    # 필요하진 않을 듯
+    # all_attr : 해당 좌표 사진의 attribute 값을 의미하는 것 -> 나중에 azure 붙이면 될 듯?
+    # lights 도 마찬가지로 light score로 하면 될 듯
+
+
+    # all_w = np.array(raw_w['Latent'])[keep_indexes]
+    # all_attr = raw_attr[keep_indexes]
     all_lights = raw_lights[keep_indexes]
 
+    # 각 인덱스에 해당하는 light 정보를 가져온다. 조사
+    # 6명의 빛 값을 가져온다.
     light0 = torch.from_numpy(raw_lights2[8]).type(torch.FloatTensor).cuda()
     light1 = torch.from_numpy(raw_lights2[33]).type(torch.FloatTensor).cuda()
     light2 = torch.from_numpy(raw_lights2[641]).type(torch.FloatTensor).cuda()
@@ -111,6 +153,7 @@ def store_lighting_value(keep_indexes):
     light4 = torch.from_numpy(raw_lights2[28]).type(torch.FloatTensor).cuda()
     light5 = torch.from_numpy(raw_lights2[34]).type(torch.FloatTensor).cuda()
 
+    # shape : 1 6 1 9 1 1
     pre_lighting = [light0, light1, light2, light3, light4, light5]
 
     return pre_lighting
@@ -123,64 +166,76 @@ def init_deep_model(opt):
     w_avg = styleGAN.mapping.w_avg
 
     generator.eval()
-    prior = cnf(512, '512-512-512-512-512', 8, 1)
-    prior.load_state_dict(torch.load('trained_model/modellarge10k_001000_02.pt')) # 
+    prior = cnf(512, '512-512-512-512-512', 10, 1) # 수정 필요
+    prior.load_state_dict(torch.load('/home/jjy/Work_Space/Work/StyleFlow/StyleFlow-union-one-attribute/trained_model/modellarge10k_001000_02.pt')) # 
+    # prior.load_state_dict(torch.load('/home/jjy/Work_Space/Work/StyleFlow/StyleFlow-ffhq-one-attribute/trained_model/modellarge10k_001000_02.pt')) # 
     prior.eval()
 
     return styleGAN, w_avg, prior
+
+# init_deep_model
+def init(opt, keep_indexes):
+    keep_indexes = np.array(keep_indexes).astype(np.int)
+    return init_deep_model(opt)
 
 
 #--------------------------------------
 # Start!
 #--------------------------------------
-opt = TestOptions().parse()
+if __name__ == "__main__":
+    device = torch.device("cuda")
 
-truncation_psi = 0.5
+    opt = TestOptions().parse()
 
-keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 212, 246, 285, 300, 329, 362,
-                            369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
-                            599]
+    truncation_psi = 0.5
+    keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 212, 246, 285, 300, 329, 362,
+                                369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
+                                599]
+    # attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+    attr_order = ['Yaw']
+    lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
 
-# attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
-attr_order = ['Expression']
-lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
+    #zero_padding = torch.zeros(1, 18 ,1).cuda() # 이걸 수정
+    zero_padding = torch.zeros(1, 16 ,1).cuda() # 이걸 수정
 
-zero_padding = torch.zeros(1, 16, 1).cuda()
-
-seeds = None
-
-# parser
-# input -> seed / image 
-# 원하는 attribuet 지정
-# 얼마나 변화시킬지 지정
-# output -> dir 위치 지정 / gird or single image
+    seeds = None
 
 
+    """
+    # attribute 관련
+    attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+    min_dic = {'Gender': 0, 'Glasses': 0, 'Yaw': -20, 'Pitch': -20, 'Baldness': 0, 'Beard': 0.0, 'Age': 0, 'Expression': 0}
+    max_dic = {'Gender': 1, 'Glasses': 1, 'Yaw': 20, 'Pitch': 20, 'Baldness': 1, 'Beard': 1, 'Age': 65, 'Expression': 1}
+    """
 
-# 여기서 원하는 attribute index 선택 / semantic value 선택
-want_slide_value = 0
-attri_index = 0
+    # 값이 들어가야 한다.
+    want_slide_value = 2
+    attri_index = 0
+
+    raw_slide_value_light = 0.5
+    light_index = 0
+
+    styleGAN, w_avg, CNFs = init(opt,keep_indexes)
+    pre_lighting = init_data_points(keep_indexes)
+    light_score, attri_score, w_vector = score(seeds,styleGAN) # attri_score, light_score : 처음 이미지의 score
+    GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = update_GT_scene_image(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
+    # editing 조건을 걸어줄 것
+
+    # 이거 매개변수 더 찾아봐야 할 듯??
+    # 몇번째 index를 변화시키는지 확인하는것 같은데.... attribute 
+    # attri_index : 아마 변한 수치의 인덱스 (int)
 
 
-keep_indexes = np.array(keep_indexes).astype(np.int)
+    """
+    i수치를 위에 주석범위 사이로 설정하면 interpolation grid 이미지 얻기 가능
+    """
+    tmp = GAN_image
+    for i in [-19,-13,-7,0,7,13,20]:
+        # edit_image, q_array, fws = real_time_arrti(attri_index,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
+        edit_image, q_array, fws = real_time_arrti(2,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
+        tmp = np.concatenate((tmp,edit_image),axis=1)
+    imageio.imwrite(f'results/finish.png',tmp)
+    print("JOB FINISH!!")
+    # edit_image = real_time_lighting(light_index, raw_slide_value_light,light_current_list, array_light, final_array_target, fws, CNFs, styleGAN, q_array, zero_padding, pre_lighting_distance) # 이하 동문
 
-# deep learning model을 불러온다.
-styleGAN, w_avg, CNFs = init_deep_model(opt)
-
-# 저장되었던 몇가지 얼굴의 빛 정보를 들고온다.
-pre_lighting = store_lighting_value(keep_indexes)
-
-# CNFs에 넣어줄 데이터 미리 준비하기
-w_vector, light_score, attri_score = Generator_Image(seeds,styleGAN)
-
-GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = CNF_model(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
-
-tmp = GAN_image
-
-# 여기서 수치 범위를 정해주면 됨
-for i in [-19,-14,-7,0,7,14,20]:
-    edit_image, q_array, fws = real_time_arrti(attri_index,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
-    tmp = np.concatenate((tmp,edit_image),axis=1)
-imageio.imwrite(f'results/finish.png',tmp)
-
-# 마지막으로 결과물 이미지 save
+    # 마지막으로 결과물 이미지 save

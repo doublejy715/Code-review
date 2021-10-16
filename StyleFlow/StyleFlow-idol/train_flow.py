@@ -47,8 +47,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="StyleFlow trainer")
 
-    parser.add_argument("--latent_path",default='data_numpy/latents.npy', type=str, help="path to the latents")
-    parser.add_argument("--light_path",default='data_numpy/lighting.npy', type=str, help="path to the lighting parameters")
+    parser.add_argument("--latent_path",default='data_numpy/latents_16.npy', type=str, help="path to the latents")
+    parser.add_argument("--light_path",default='data_numpy/lighting_9.npy', type=str, help="path to the lighting parameters")
     parser.add_argument("--attributes_path",default='data_numpy/one_attributes.npy', type=str, help="path to the attribute parameters")
     parser.add_argument(
         "--batch", type=int, default=5, help="batch size"
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument("--flow_modules", type=str, default='512-512-512-512-512')
-    parser.add_argument("--cond_size", type=int, default=8)
+    parser.add_argument("--cond_size", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
 
 
@@ -69,8 +69,7 @@ if __name__ == '__main__':
 
     sg_latents = np.load(args.latent_path)
     lighting = np.load(args.light_path)
-    attributes = np.load(args.attributes_path)[:,7,:]
-    attributes = np.expand_dims(attributes,axis=-1)
+    attributes = np.load(args.attributes_path)
     sg_attributes = np.concatenate([lighting,attributes], axis = 1)
 
     my_dataset = MyDataset(latents=torch.Tensor(sg_latents).cuda(), attributes=torch.tensor(sg_attributes).float().cuda())

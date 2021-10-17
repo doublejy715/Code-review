@@ -62,10 +62,11 @@ def real_time_arrti(attr_index, edit_slide_value, ori_whole_score, zero_padding,
     
     real_value = invert_slide_to_real(attr_order[attr_index], edit_slide_value)
 
-    attr_change = real_value - attr_current_list[attr_index]
-    attr_final = attr_degree_list[attr_index] * attr_change + attr_current_list[attr_index]
+    attr_change = real_value - attr_current_list[0]
+    attr_final = attr_degree_list[0] * attr_change + attr_current_list[0]
 
-    ori_whole_score[0, attr_index + 9, 0, 0] = attr_final
+    #ori_whole_score[0, 0 + 9, 0, 0] = attr_final
+    ori_whole_score[0, 0 , 0, 0] = attr_final
 
     rev = CNFs(fws[0], ori_whole_score, zero_padding, True)
 

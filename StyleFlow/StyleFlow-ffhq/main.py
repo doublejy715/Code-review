@@ -22,9 +22,6 @@ import legacy
 from PIL import Image
 import imageio
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-
 import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -33,7 +30,7 @@ import torchvision.models as models
 
 import numpy as np
 
-device = torch.device("cuda")
+
 
 class Model(nn.Module):
     def __init__(self):
@@ -79,10 +76,13 @@ def ss(image):
 
 # score 구하는 모델 들고와야 함 밑 함수 input으로 넣어줘야 함
 def score(seed, styleGAN):
+    """
+    여기서 시작 벡터 값을 조절하면 됨
+    """
     all_z = np.array([np.random.RandomState(seed).randn(styleGAN.z_dim)])
     w_vector = styleGAN.mapping(torch.from_numpy(all_z).to(device), None)
+    # w_vector = torch.from_numpy(np.load('projected_w.npz','r')['w']).to(device)
     # mapping SEEDs -> w latent vector
-    w_vector  = torch.tensor(np.load("sample.npz")["w"]).to(device)
     start_image = styleGAN.synthesis(w_vector,noise_mode='const')
     start_image = (start_image.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8).squeeze(0).cpu().numpy()
 
@@ -97,8 +97,11 @@ def update_GT_scene_image(w,attri_score,light_score,model,CNFs, pre_lighting):
     # start synthesis image 정보 저장
     w_current = w
     attr_current = attri_score
+    print(attr_current.shape)
 
     light_current = light_score
+
+
     # tmp
     tmp_light = np.array([[[0.],[0,]]])
     light_current = np.concatenate([light_current,np.array(tmp_light)],axis=1)
@@ -111,18 +114,21 @@ def update_GT_scene_image(w,attri_score,light_score,model,CNFs, pre_lighting):
 
     q_array = torch.from_numpy(w_current).cuda().clone().detach()
     array_source = torch.from_numpy(attr_current).type(torch.FloatTensor).cuda()
-    array_light = torch.from_numpy(light_current).type(torch.FloatTensor).cuda()
-    pre_lighting_distance = [pre_lighting[i] - array_light for i in range(len(lighting_order))]
 
-    final_array_source = torch.cat([array_light, array_source], dim=1) # 1 7 1  / 1 8 1
-    final_array_target = torch.cat([array_light, array_source], dim=1)
+    # array_light = torch.from_numpy(light_current).type(torch.FloatTensor).cuda()
+    # pre_lighting_distance = [pre_lighting[i] - array_light for i in range(len(lighting_order))]
+
+    # final_array_source = torch.cat([array_light, array_source], dim=1) # 1 7 1  / 1 8 1
+    final_array_source = array_source
+    # final_array_target = torch.cat([array_light, array_source], dim=1)
+    final_array_target = array_source
 
     fws = CNFs(q_array, final_array_source, zero_padding)
-    # 이거 왜 있누?
-    GAN_image = styleGAN.synthesis(torch.tensor(w_vector).to(device),noise_mode='const')
+
+    GAN_image = styleGAN.synthesis(torch.tensor(w_current).to(device),noise_mode='const')
     GAN_image = (GAN_image.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8).squeeze(0).cpu().numpy()
 
-    return GAN_image, fws, final_array_target, attr_current_list, q_array, light_current_list, array_light, pre_lighting_distance
+    return GAN_image, fws, final_array_target, attr_current_list, q_array, light_current_list,# array_light, pre_lighting_distance
 
 def init_data_points(keep_indexes):
     
@@ -156,14 +162,15 @@ def init_data_points(keep_indexes):
 
 def init_deep_model(opt):
     with dnnlib.util.open_url('model/stylegan2-ffhq-config-f.pkl') as f:
+    #with dnnlib.util.open_url('model/ffhq.pkl') as f:
         styleGAN = legacy.load_network_pkl(f)['G_ema']
 
     generator = styleGAN.cuda()
     w_avg = styleGAN.mapping.w_avg
 
     generator.eval()
-    prior = cnf(512, '512-512-512-512-512', 17, 1) # 수정 필요
-    prior.load_state_dict(torch.load('flow_weight/modellarge10k.pt')) # 
+    prior = cnf(512, '512-512-512-512-512', 8, 1) # 수정 필요
+    prior.load_state_dict(torch.load('/home/jjy/Work_Space/Work/StyleFlow/StyleFlow-ffhq-one-attribute/trained_model/modellarge10k_001000_02.pt')) # 
     prior.eval()
 
     return styleGAN, w_avg, prior
@@ -177,41 +184,61 @@ def init(opt, keep_indexes):
 #--------------------------------------
 # Start!
 #--------------------------------------
-opt = TestOptions().parse()
+if __name__ == "__main__":
+    device = torch.device("cuda")
 
-truncation_psi = 0.5
-keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 212, 246, 285, 300, 329, 362,
-                            369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
-                            599]
-attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
-lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
+    opt = TestOptions().parse()
 
-zero_padding = torch.zeros(1, 18, 1).cuda()
+    truncation_psi = 0.5
+    keep_indexes = [2, 5, 25, 28, 16, 32, 33, 34, 55, 75, 79, 162, 177, 196, 160, 212, 246, 285, 300, 329, 362,
+                                369, 462, 460, 478, 551, 583, 643, 879, 852, 914, 999, 976, 627, 844, 237, 52, 301,
+                                599]
+    attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+    # attr_order = ['Yaw']
+    lighting_order = ['Left->Right', 'Right->Left', 'Down->Up', 'Up->Down', 'No light', 'Front light']
 
-seeds = None
+    zero_padding = torch.zeros(1, 18, 1).cuda()
 
-# 값이 들어가야 한다.
-want_slide_value = 0
-attri_index = 3
+    seeds = None
 
-raw_slide_value_light = 0.5
-light_index = 0
 
-styleGAN, w_avg, CNFs = init(opt,keep_indexes)
-pre_lighting = init_data_points(keep_indexes)
-light_score, attri_score, w_vector = score(seeds,styleGAN) # attri_score, light_score : 처음 이미지의 score
-GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = update_GT_scene_image(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
-# editing 조건을 걸어줄 것
+    """
+    # attribute 관련
+    attr_order = ['Gender', 'Glasses', 'Yaw', 'Pitch', 'Baldness', 'Beard', 'Age', 'Expression']
+    min_dic = {'Gender': 0, 'Glasses': 0, 'Yaw': -20, 'Pitch': -20, 'Baldness': 0, 'Beard': 0.0, 'Age': 0, 'Expression': 0}
+    max_dic = {'Gender': 1, 'Glasses': 1, 'Yaw': 20, 'Pitch': 20, 'Baldness': 1, 'Beard': 1, 'Age': 65, 'Expression': 1}
+    """
 
-# 이거 매개변수 더 찾아봐야 할 듯??
-# 몇번째 index를 변화시키는지 확인하는것 같은데.... attribute 
-# attri_index : 아마 변한 수치의 인덱스 (int)
-tmp = GAN_image
-for i in [-20,-14,-7,0,7,14,20]:
-    edit_image, q_array, fws = real_time_arrti(attri_index,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
-    tmp = np.concatenate((tmp,edit_image),axis=1)
-imageio.imwrite(f'results/finish.png',tmp)
+    # 값이 들어가야 한다.
+    want_slide_value = 2
+    attri_index = 2
 
-# edit_image = real_time_lighting(light_index, raw_slide_value_light,light_current_list, array_light, final_array_target, fws, CNFs, styleGAN, q_array, zero_padding, pre_lighting_distance) # 이하 동문
+    raw_slide_value_light = 0.5
+    light_index = 0
 
-# 마지막으로 결과물 이미지 save
+    styleGAN, w_avg, CNFs = init(opt,keep_indexes)
+    pre_lighting = init_data_points(keep_indexes)
+    light_score, attri_score, w_vector = score(seeds,styleGAN) # attri_score, light_score : 처음 이미지의 score
+    #GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list, array_light, pre_lighting_distance = update_GT_scene_image(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
+    GAN_image, fws, final_array_target, attr_current_list, q_array,light_current_list = update_GT_scene_image(w_vector,attri_score,light_score,styleGAN,CNFs,pre_lighting)
+    # editing 조건을 걸어줄 것
+
+    # 이거 매개변수 더 찾아봐야 할 듯??
+    # 몇번째 index를 변화시키는지 확인하는것 같은데.... attribute 
+    # attri_index : 아마 변한 수치의 인덱스 (int)
+
+
+    """
+    i수치를 위에 주석범위 사이로 설정하면 interpolation grid 이미지 얻기 가능
+    """
+    tmp = GAN_image
+    for i in [-19,-13,-7,0,7,13,20]:
+        # edit_image, q_array, fws = real_time_arrti(attri_index,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
+        edit_image, q_array, fws = real_time_arrti(2,i,final_array_target,zero_padding, fws, CNFs, styleGAN, attr_current_list, q_array) # attri_index : / raw_slide_value_attri : 바뀌는 attri score 임
+        tmp = np.concatenate((tmp,edit_image),axis=1)
+    imageio.imwrite(f'results/finish.png',tmp)
+    print("JOB FINISH!!")
+    # edit_image = real_time_lighting(light_index, raw_slide_value_light,light_current_list, array_light, final_array_target, fws, CNFs, styleGAN, q_array, zero_padding, pre_lighting_distance) # 이하 동문
+
+    # 마지막으로 결과물 이미지 save
+

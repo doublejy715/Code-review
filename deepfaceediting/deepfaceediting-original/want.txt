@@ -1,0 +1,44 @@
+Commands
+
+python test_model.py --geo ./images/sketch_gen.png --appear ./images/appearance.png --output ./results/sketch_result.png --geo_type sketch
+python test_model.py --geo ./images/geometry.png --appear ./images/appearance.png --output ./results/image_result.png --geo_type image
+python test_model.py --geo ./images/geometry.png --output ./results/sketch_gen2.png --gen_sketch
+
+Case 1. extract geometry feature
+    input : real image or sketch image for geometry feature
+    image가 들어온 경우 : real image -> geometry feature map(sketch image가 되지 않고 바로 feature map이 된다.)
+    sketch가 들어온 경우 : sketch image -> geometry feature map
+    output : feature map of geometry info
+
+        model name : GeometryEncoder
+
+    --gen_sketch
+        만약 sketch image를 얻고 싶다면 --gen_sketch 옵션을 준다.
+        output : real image -> sketch image 만들어 준다.
+
+    제공 해야 하는 요소
+        geometry를 edit하고 싶다면 반드시 sketch image가 필요하다.
+        화면 상에 geometry image를 띄워서 사용자가 직접 edit를 하도록 한다.
+
+Case 2. 얼굴 요소 appearance 이미지 준비
+    input : sketch img & appearance img(size : 512x512)
+    *눈, 코, 입 위치와 사이즈가 고정되어 있음 -> 이미지의 눈,코,입 위치가 고정되어야 함
+    (face landmark -> resize -> 직접 넣어주는 방법?)
+    output : 얼굴 요소 geometry에 appearance가 적용된 feature map을 만들어 준다.
+
+    과정
+        1. 얼굴에서 요소별로 이미지를 자른다.
+        2. sketch 이미지에서 잘려진 얼굴 요소들을 feature map으로 만든다.
+        3. 만들어진 feature map과 동일한 요소 appearance part image를 섞어준다
+        4. background feature map에 다른 요소들을 넣어준다.(넣어줄 때 요소의 위치는 geometry image기준일 듯)
+
+    제공 해야 하는 요소
+        얼굴 요소만 담긴 사진을 넣어주는 경우 -> resize -> 직접 넣어줌
+            input이 전체 얼굴인데 얼굴 일부 요소만 사용하고 싶은 경우 -> landmark -> crop & resize -> 직접 넣어줌
+        원하는 성질 얼굴 전체 사진을 넣어주는 경우 -> landmark로 요소 찾음 -> crop & resize -> 직접 넣어줌
+
+Case 3. 얼굴 요소를 더 세밀하게 editing 하고 싶다면?
+    ex) 눈 색, 쌍거풀, 눈꼬리 -> 쌍거풀 눈꼬리(geometry요소) / 눈 색(appearance) ...?
+
+
+

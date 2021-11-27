@@ -1,0 +1,8 @@
+# real-image to geometry-image
+python test_model.py --geo ./images/seed0265.png --output ./results/sketch_gen_idol.png --gen_sketch
+
+python test_model.py --geo ./results/sketch_gen_idol_original.png --appear ./images/seed0265.png --output ./results/reconstruct_result.png --geo_type sketch
+python test_model.py --geo ./results/sketch/sketch_small_sidenose.png --appear ./images/seed0265.png --output ./results/edit/sketch_small_sidenose_result.png --geo_type sketch
+
+
+python test_model.py --geo ./results/ffhq_geometry_edit_test/sketch/Angry_sketch.png --appear ./images/geometry.png --output ./results/ffhq_geometry_edit_test/result/Angry_result.png --geo_type sketch
